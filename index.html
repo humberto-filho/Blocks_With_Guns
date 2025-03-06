@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <title>Blocks w/ Guns</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.js"></script>
-    <script src ="scenes/welcome.js"></script>
-    <script src ="scenes/selectplayer.js"></script>
-    <script src ="scenes/battleground.js"></script>
+    <script type = "module" src ="scenes/welcome.js"></script>
+    <script type = "module" src ="scenes/selectplayer.js"></script>
+    <script type = "module" src ="scenes/battleground.js"></script>
     
     <style>
         body{
@@ -22,7 +22,7 @@
 
 <body>
     <div id="game">
-        <script type="text/javascript">
+        <script type="module">
             // Cria as definições das variáveis
             const config = { 
                 type:Phaser.AUTO,
@@ -44,11 +44,12 @@
                     createContainer: true,
                 },
                 // Cria as cenas do jogo
-                scene:[Welcome, SelectPlayer, BattleGround]
+                scene:[Welcome, SelectPlayer, Battleground],
+                fps: 30
             };
             // Define o jogo Phaser com as configuraçoes e inicia na cena "Welcome"
             var game = new Phaser.Game(config);
-            game.scene.start("Welcome");
+            game.scene.start("welcome");
         </script>
     </div>
 </body>
