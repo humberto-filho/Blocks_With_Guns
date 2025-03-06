@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Blocks w/ Guns</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.js"></script>
+    <script src ="scenes/welcome.js"></script>
+    <script src ="scenes/selectplayer.js"></script>
+    <script src ="scenes/battleground.js"></script>
+    
+    <style>
+        body{
+            margin-top: 1px;
+            padding: 0;
+        }
+
+        canvas {
+            border: 1px solid #000000;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game">
+        <script type="text/javascript">
+            // Cria as definições das variáveis
+            const config = { 
+                type:Phaser.AUTO,
+                scale:{
+                    mode: Phaser.Scale.FIT
+                },
+                autoCenter: Phaser.Scale.CENTER,
+                width:500, // Largura da tela do jogo
+                height:500, // Altura da tela do jogo
+                backgroundColor: '#7fffd4', // Cor setada para aquamarine
+                physics:{ // Físicas de Arcade
+                    default : 'arcade', 
+                    arcade:{
+                        debug:false
+                    }
+                },
+                parent: "game",
+                dom:{
+                    createContainer: true,
+                },
+                // Cria as cenas do jogo
+                scene:[Welcome, SelectPlayer, BattleGround]
+            };
+            // Define o jogo Phaser com as configuraçoes e inicia na cena "Welcome"
+            var game = new Phaser.Game(config);
+            game.scene.start("Welcome");
+        </script>
+    </div>
+</body>
+
+</html>
