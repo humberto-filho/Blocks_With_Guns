@@ -41,6 +41,7 @@ class SelectPlayer extends Phaser.Scene {
         yellowButton.on('pointerup', () => {
             this.sound.stopAll();
             let playerData = {player: 'yellow'};
+            this.bg.destroy(true);
             this.scene.start('battleground', playerData);
         });
 

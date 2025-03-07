@@ -4,7 +4,6 @@ export function generateScenario(){
     const cols = 25;
     let matrix = [];
 
-    // Initialize matrix with 0's
     for (let i = 0; i < rows; i++) {
         matrix[i] = [];
         for (let j = 0; j < cols; j++) {
@@ -12,17 +11,17 @@ export function generateScenario(){
         }
     }
 
-    // Fill the top, bottom, left, and right borders with 1's
+ 
     for (let j = 0; j < cols; j++) {
-        matrix[0][j] = 1;           // Top border
-        matrix[rows - 1][j] = 1;      // Bottom border
+        matrix[0][j] = 1;           
+        matrix[rows - 1][j] = 1;      
     }
     for (let i = 0; i < rows; i++) {
-        matrix[i][0] = 1;           // Left border
-        matrix[i][cols - 1] = 1;      // Right border
+        matrix[i][0] = 1;
+        matrix[i][cols - 1] = 1;      
     }
 
-    // Generate noise for inner cells (values between 0 and 1)
+
     let noise = [];
     for (let i = 0; i < rows; i++) {
         noise[i] = [];
@@ -31,7 +30,7 @@ export function generateScenario(){
         }
     }
 
-    // Smooth the noise using a simple neighborhood average
+
     let smooth = [];
     for (let i = 0; i < rows; i++) {
         smooth[i] = [];
@@ -52,11 +51,9 @@ export function generateScenario(){
         }
     }
 
-    // For inner cells (not borders), use the smoothed noise to randomly place walls.
-    // A higher threshold means fewer walls. Adjust threshold to get desired labyrinth look.
     for (let i = 1; i < rows - 1; i++) {
         for (let j = 1; j < cols - 1; j++) {
-            if (smooth[i][j] > 0.6) {
+            if (smooth[i][j] > 0.595) {
                 matrix[i][j] = 1;
             }
         }

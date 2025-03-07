@@ -1,11 +1,11 @@
-export function handleGun(gun, mouseX, mouseY, playerX, playerY) {
+export function handleGun(gun, mouseX, mouseY, spriteX, spriteY) {
 
     gun.setOrigin(0, 0.5); 
 
-    const dx = mouseX - playerX;
-    const dy = mouseY - playerY;
+    const dx = mouseX - spriteX;
+    const dy = mouseY - spriteY;
     const angle = Math.atan2(dy, dx);
     
-    gun.setPosition(playerX + 10, playerY + 10);
+    gun.setPosition(spriteX + 10, spriteY + 10);
     gun.setRotation(angle);
 }

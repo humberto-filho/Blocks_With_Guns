@@ -46,6 +46,7 @@ class Welcome extends Phaser.Scene {
         playButton.on('pointerup', () => {
             this.time.delayedCall(400, () => {
                 this.bg.destroy(true);
+                this.textures.remove('bg');
                 this.sound.stopAll();
                 this.scene.start('select_player', {}, {
                     remove: true,

@@ -15,5 +15,5 @@ export function handleMovement(player, keyW, keyA, keyS, keyD, speed){
     const playerX = player.body.position.x;
     const playerY = player.body.position.y;
 
-    return {x: playerX, y: playerY};
+    return {x: playerX, y: playerY, vx : moveX, vy : moveY};
 }

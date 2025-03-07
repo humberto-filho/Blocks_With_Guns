@@ -1,4 +1,4 @@
-export function dijkstraPathFind(scenarioMatrix, startX, startY, goalX, goalY) {
+export function djikstraPathFind(scenarioMatrix, startX, startY, goalX, goalY) {
     class Node {
         constructor(x, y, parent = null) {
             this.x = x;
