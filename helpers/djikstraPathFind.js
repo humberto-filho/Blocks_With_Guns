@@ -48,7 +48,6 @@ export function djikstraPathFind(scenarioMatrix, startX, startY, goalX, goalY) {
 
 
         if (current.x === goal.x && current.y === goal.y) {
-            // Reconstruct path
             const path = [];
             let temp = current;
             while (temp) {

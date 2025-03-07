@@ -27,6 +27,8 @@ class Battleground extends Phaser.Scene {
         this.angleCooldown = 0;
         this.playerHearts = 5;
         this.enemyHearts = 5;
+        this.currentTime = 0;
+        this.colorCooldown = 500;
     }
 
     preload(){
@@ -42,6 +44,7 @@ class Battleground extends Phaser.Scene {
         this.load.audio('shot', 'assets/shot.mp3');
         this.load.audio('battleground', 'assets/battleground.mp3');
         this.load.image('bg', 'assets/battlegroundbg.png');
+        this.load.audio('error', 'assets/error.mp3');
     }
 
     create(data){
@@ -165,11 +168,11 @@ class Battleground extends Phaser.Scene {
         enemyY = enemyIndexY * 20 + 10;
 
         if (data.player == 'yellow'){
-            this.player = this.physics.add.sprite(this.playerX, this.playerY, 'player', 0).setOrigin(0.5, 0.5).setDepth(1).setScale(1);
+            this.player = this.physics.add.sprite(this.playerX, this.playerY, 'player', 0).setOrigin(0.5, 0.5).setDepth(1).setScale(1).setAlpha(0.8);
         } else if (data.player == 'green'){
-            this.player = this.physics.add.sprite(this.playerX, this.playerY, 'player', 1).setOrigin(0.5, 0.5).setDepth(1).setScale(1);
+            this.player = this.physics.add.sprite(this.playerX, this.playerY, 'player', 1).setOrigin(0.5, 0.5).setDepth(1).setScale(1).setAlpha(0.8);
         } else if (data.player == 'blue'){
-            this.player = this.physics.add.sprite(this.playerX, this.playerY, 'player', 2).setOrigin(0.5, 0.5).setDepth(1).setScale(1);
+            this.player = this.physics.add.sprite(this.playerX, this.playerY, 'player', 2).setOrigin(0.5, 0.5).setDepth(1).setScale(1).setAlpha(0.8);
         } else { 
             alert("data not found");
         }
@@ -214,6 +217,8 @@ class Battleground extends Phaser.Scene {
         });
 
         this.scenarioMatrix = scenarioMatrix;
+        this.difficulty = data.difficulty;
+        this.borderGr = this.add.graphics();
     }
 
 
@@ -223,14 +228,13 @@ class Battleground extends Phaser.Scene {
         let speed = 70;
         let infosPlayer = handleMovement(this.player, this.keyW, this.keyA, this.keyS, this.keyD, speed, this.playerX, this.playerY);
         handleGun(this.gun,mouseX, mouseY, infosPlayer.x, infosPlayer.y);
-        let difficulty = 'easy';
         const aiDecision = enemyAI(
             this.scenarioMatrix,
             infosPlayer.x,
             infosPlayer.y,
             infosPlayer.vx,
             infosPlayer.vy,
-            difficulty,
+            this.difficulty,
             this.enemy
         );
 
@@ -246,6 +250,8 @@ class Battleground extends Phaser.Scene {
             this.enemyShoot(aiDecision.fireAngle);
             this.enemy.shootCooldown = 500; 
         }
+        
+
     
         if (this.enemy.shootCooldown > 0) {
             this.enemy.shootCooldown -= 1;
@@ -260,6 +266,29 @@ class Battleground extends Phaser.Scene {
         }
         
         this.handleEnemyGun(aiDecision.fireAngle, this.enemyGun, this.enemy.x, this.enemy.y);
+        this.timeRn = this.time.now;
+        
+        if(this.timeRn - this.currentTime >= 500){
+            this.borderGr.clear();
+            this.player.setTint(0xffffff);
+            
+        } else{
+            this.drawBorder();
+        }
+    }
+
+    drawBorder() {
+        // Clear the previous border
+        this.borderGr.clear();
+    
+        // Draw a black border around the player
+        this.borderGr.lineStyle(1, 0x000000); 
+        this.borderGr.strokeRect(
+            this.player.x - this.player.displayWidth / 2 + 1, 
+            this.player.y - this.player.displayHeight / 2 + 1, 
+            this.player.displayWidth - 2, 
+            this.player.displayHeight - 2 
+        ).setDepth(2);
     }
 
     updateHearts(heartsGroup, currentHearts) {
@@ -326,11 +355,22 @@ class Battleground extends Phaser.Scene {
     }
 
     shoot() {
-        const currentTime = this.time.now; 
-        if (currentTime - this.lastShotTime < this.shootCooldown) {
+        this.currentTime = this.time.now; 
+      
+        if (this.currentTime - this.lastShotTime < this.shootCooldown) {
+            this.lastShotTime = this.currentTime;
+            this.player.setTintFill(0xff0000);
+            this.borderGr.lineStyle(1, 0x000000);
+            this.borderGr.strokeRect(
+                this.player.x - this.player.displayWidth / 2, 
+                this.player.y - this.player.displayHeight / 2,
+                this.player.displayWidth, 
+                this.player.displayHeight 
+            );
+            this.sound.play('error');
             return;
         }
-    
+        else{
         const bullet = this.playerBullets.get();
         if (bullet) {
             bullet.setActive(true);
@@ -345,8 +385,8 @@ class Battleground extends Phaser.Scene {
             const playerY = this.player.body.position.y;
             
             handleShooting(bullet, mouseX, mouseY, playerX, playerY);
-            this.lastShotTime = currentTime;
-        }
+            this.lastShotTime = this.currentTime;
+        }}
     }
 }
 

@@ -29,14 +29,17 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty = 'easy', ene
             };
             movementVector = wallAwareVelocity(fleeDirection, avoidance);
             return {
-                speed: 15, // Faster speed when retreating
+                speed: 10, // Faster speed when retreating
                 fireAngle: Math.atan2(dy, dx),
                 movement: movementVector
             };
         } else {
+        let dxRandom = Math.random(2) + (-1);
+        let dyRandom = Math.random(2) + (-1);
         return {
             speed: 10,
-            fireAngle: Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.2,
+            
+            fireAngle: Math.atan2(dy + dyRandom, dx + dxRandom),
             movement: wallAwareVelocity(
                 movementVector,
                 avoidance

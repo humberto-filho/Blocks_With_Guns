@@ -6,6 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.23.0/dist/phaser.js"></script>
     <script type = "module" src ="scenes/welcome.js"></script>
     <script type = "module" src ="scenes/selectplayer.js"></script>
+    <script type = "module" src = "scenes/difficulties.js"></script>
     <script type = "module" src ="scenes/battleground.js"></script>
     
     <style>
@@ -44,7 +45,7 @@
                     createContainer: true,
                 },
                 // Cria as cenas do jogo
-                scene:[Welcome, SelectPlayer, Battleground],
+                scene:[Welcome, SelectPlayer, Difficulties, Battleground],
                 fps: 30
             };
             // Define o jogo Phaser com as configuraçoes e inicia na cena "Welcome"

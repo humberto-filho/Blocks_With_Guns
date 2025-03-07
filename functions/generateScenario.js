@@ -53,7 +53,7 @@ export function generateScenario(){
 
     for (let i = 1; i < rows - 1; i++) {
         for (let j = 1; j < cols - 1; j++) {
-            if (smooth[i][j] > 0.595) {
+            if (smooth[i][j] > 0.6) {
                 matrix[i][j] = 1;
             }
         }

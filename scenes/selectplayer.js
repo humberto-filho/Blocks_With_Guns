@@ -42,7 +42,7 @@ class SelectPlayer extends Phaser.Scene {
             this.sound.stopAll();
             let playerData = {player: 'yellow'};
             this.textures.remove('bg');
-            this.scene.start('battleground', playerData);
+            this.scene.start('difficulties', playerData);
         });
 
         greenButton.on('pointerover', () => {
@@ -58,7 +58,7 @@ class SelectPlayer extends Phaser.Scene {
             this.sound.stopAll();
             let playerData = {player : 'green'};
             this.textures.remove('bg');
-            this.scene.start('battleground', playerData);
+            this.scene.start('difficulties', playerData);
         });
 
         blueButton.on('pointerover', () => {
@@ -75,7 +75,7 @@ class SelectPlayer extends Phaser.Scene {
             this.sound.stopAll();
             let playerData = {player: 'blue'};
             this.textures.remove('bg');
-            this.scene.start('battleground', playerData);
+            this.scene.start('difficulties', playerData);
         });
     }
 
