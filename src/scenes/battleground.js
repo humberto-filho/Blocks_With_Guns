@@ -211,7 +211,7 @@ class Battleground extends Phaser.Scene {
             if (body.gameObject.texture.key === 'bullet') {
                 body.gameObject.setActive(false);
                 body.gameObject.setVisible(false);
-                body.gameObject.body.enable = false; // Disable physics body
+                body.gameObject.body.enable = false; 
             }
         });
         
@@ -297,10 +297,10 @@ class Battleground extends Phaser.Scene {
     }
 
     drawBorder() {
-        // Clear the previous border
+   
         this.borderGr.clear();
     
-        // Draw a black border around the player
+  
         this.borderGr.lineStyle(1, 0x000000); 
         this.borderGr.strokeRect(
             this.player.x - this.player.displayWidth / 2 + 1, 

@@ -81,6 +81,5 @@ export function djikstraPathFind(scenarioMatrix, startX, startY, goalX, goalY) {
             }
         }
     }
-    // If no path is found, return an empty array
     return [];
 }

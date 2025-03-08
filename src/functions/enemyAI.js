@@ -11,7 +11,7 @@ import {
     calculateBulletThreatLevel
 } from "./markovHard.js";
 
-// Helper functions
+
 function weightedAverageAngle(angle1, angle2, weight) {
     const x = Math.cos(angle1) * weight + Math.cos(angle2) * (1 - weight);
     const y = Math.sin(angle1) * weight + Math.sin(angle2) * (1 - weight);
@@ -130,13 +130,13 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
             }
             break;
             case 'hard':
-           // Calculate core metrics
+        
            const bulletThreat = calculateBulletThreatLevel(enemy);
            const physicsWeight = engagementDuration < 5000 ? 0.5 : 0.8;
            const memoryWeight = 1 - physicsWeight;
-           const timeToReach = dist / 200; // Using fixed bullet speed
+           const timeToReach = dist / 200; 
    
-           // Prediction system
+       
            const physicsPrediction = {
                x: px + vx * timeToReach,
                y: py + vy * timeToReach
@@ -148,7 +148,7 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
                y: physicsPrediction.y * physicsWeight + memoryPrediction.y * memoryWeight
            };
    
-           // Pathfinding and decision making
+  
            const markovPath = markovDecisionProcess(
                enemy, 
                hybridPrediction.x,
@@ -156,27 +156,24 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
                scenarioMatrix
            );
    
-           // Threat-responsive movement system
            const dodgeVector = calculateDodge(enemy, scenarioMatrix);
            const pathDirection = getPathDirection(markovPath, enemy);
            
-           // Dynamic weights
+    
            const dodgeWeight = Math.min(1.5, 0.8 + bulletThreat * 0.7);
            const pathWeight = 1.2 - bulletThreat * 0.5;
            const wallWeight = 1.0 - bulletThreat * 0.3;
    
-           // Movement composition
+   
            let rawMovement = combineVectors(
                { x: pathDirection.x * pathWeight, y: pathDirection.y * pathWeight },
                { x: dodgeVector.x * dodgeWeight, y: dodgeVector.y * dodgeWeight }
            );
    
-           // Wall avoidance integration
            const wallAdjustment = basicWallAvoidance(enemy.x, enemy.y, scenarioMatrix);
            rawMovement.x += wallAdjustment.x * wallWeight;
            rawMovement.y += wallAdjustment.y * wallWeight;
    
-           // Velocity smoothing and speed control
            const currentMaxSpeed = MAX_BASE_SPEED * (1 + bulletThreat * 0.5);
            const dynamicSmoothing = SMOOTHING_FACTOR * (1 - bulletThreat * 0.5);
            
@@ -191,19 +188,19 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
                dynamicSmoothing
            );
    
-           // Final velocity calculation
+      
            const velocity = normalizeVector(enemy.smoothedVelocity);
            velocity.x *= currentMaxSpeed;
            velocity.y *= currentMaxSpeed;
    
-           // Close-range speed modulation
+    
            if (dist < 100) {
                const speedMod = dist / 200;
                velocity.x *= speedMod;
                velocity.y *= speedMod;
            }
    
-           // Adaptive aiming system
+    
            let aimPrediction;
            if (bulletThreat > 0.7) {
                aimPrediction = predictiveAim([], enemy.memory);

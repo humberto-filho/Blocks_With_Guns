@@ -1,4 +1,3 @@
-// MarkovHard.js (Integrated Implementation)
 import { aStarPathFind } from "../helpers/aStarPathFind.js";
 import { basicWallAvoidance } from "../helpers/wallsLogic.js";
 
@@ -30,7 +29,7 @@ export function calculateBulletThreatLevel(enemy) {
 function calculateAverageSpeed(positions) {
     if (positions.length < 2) return 0;
 
-    // Exponential decay parameters
+  
     const gamma = 0.85;
     const weights = positions.map((_, i) => 
         Math.pow(gamma, positions.length - i - 1)
@@ -46,7 +45,7 @@ function calculateAverageSpeed(positions) {
         totalDistance += distance * weights[i];
     }
 
-    return totalDistance / (totalWeight * 1000); // Convert to units per millisecond
+    return totalDistance / (totalWeight * 1000); 
 }
 
 function detectFavoriteZones(positions) {
@@ -82,7 +81,7 @@ function generateRushedAttack(scenarioMatrix, enemy, targetX, targetY, aggressio
 }
 
 export function generateObservantPatrol(scenarioMatrix, enemy, favoriteZones) {
-    // Combine standard patrol points with strategic positions
+ 
     const basePoints = [
         {x: enemy.x + 300, y: enemy.y},
         {x: enemy.x - 300, y: enemy.y},
@@ -90,35 +89,34 @@ export function generateObservantPatrol(scenarioMatrix, enemy, favoriteZones) {
         {x: enemy.x, y: enemy.y - 300}
     ];
 
-    // Generate intelligent points based on player patterns
+ 
     const strategicPoints = favoriteZones
         .map(([zoneX, zoneY]) => ({
-            x: zoneX * 200 + 100 + (Math.random() * 80 - 40), // Jitter within zone
+            x: zoneX * 200 + 100 + (Math.random() * 80 - 40),
             y: zoneY * 200 + 100 + (Math.random() * 80 - 40)
         }))
         .filter(p => isPositionValid(scenarioMatrix, p.x, p.y));
 
-    // Combine all potential points
+  
     const allPoints = [...basePoints, ...strategicPoints];
     
-    // Filter valid positions with pathfinding check
+    
     const validPoints = allPoints.filter(p => {
         if (!isPositionValid(scenarioMatrix, p.x, p.y)) return false;
         const path = aStarPathFind(scenarioMatrix, enemy.x, enemy.y, p.x, p.y);
         return path.length > 0;
     });
 
-    // Fallback if no valid points
+
     if (validPoints.length === 0) {
         return [{ x: enemy.x, y: enemy.y }];
     }
 
-    // Weighted selection preferring strategic points
+ 
     const selectionWeights = validPoints.map(p => 
         strategicPoints.some(sp => sp.x === p.x && sp.y === p.y) ? 0.7 : 0.3
     );
-    
-    // Select target using intelligent weighting
+
     const totalWeight = selectionWeights.reduce((a, b) => a + b, 0);
     let random = Math.random() * totalWeight;
     let selectedIndex = 0;
@@ -134,7 +132,7 @@ export function generateObservantPatrol(scenarioMatrix, enemy, favoriteZones) {
     const target = validPoints[selectedIndex];
     let path = aStarPathFind(scenarioMatrix, enemy.x, enemy.y, target.x, target.y);
     
-    // Ensure path remains valid
+
     if (path.length === 0 || !isPositionValid(scenarioMatrix, target.x, target.y)) {
         path = [{ x: enemy.x, y: enemy.y }];
     }
@@ -209,12 +207,12 @@ export function updateMemory(enemy, px, py, vx, vy, shotInfo) {
         timestamp: now
     };
 
-    // Apply exponential decay to existing entries
+    
     if (shotInfo) {
         enemy.memory.playerShots = enemy.memory.playerShots || [];
         enemy.memory.playerShots.push(shotInfo);
         
-        // Keep only shots from last 5 seconds
+      
         enemy.memory.playerShots = enemy.memory.playerShots.filter(
             s => Date.now() - s.time < 5000
         );
@@ -228,10 +226,10 @@ export function updateMemory(enemy, px, py, vx, vy, shotInfo) {
         }))
         .filter(entry => now - entry.timestamp <= 30000);
 
-    // Add new entry with full weight
+  
     enemy.memory.playerPositions.push(newEntry);
 
-    // Update derived metrics
+  
     enemy.memory.averageSpeed = calculateAverageSpeed(enemy.memory.playerPositions);
     enemy.memory.favoriteZones = detectFavoriteZones(enemy.memory.playerPositions);
 }
@@ -242,20 +240,20 @@ export function calculateDodge(enemy, scenarioMatrix, shotInfo) {
     const currentTime = Date.now();
     const personalityFactor = enemy.memory.aggression || 0.5;
 
-    // Strategic assessment system
+ 
     const threatAssessment = {
         immediateDanger: 0,
         preferredDodgeDirection: { x: 0, y: 0 },
         safeZones: []
     };
 
-    // Process all tracked shots
+ 
     enemy.memory.playerShots?.forEach(shot => {
         const timeAlive = (currentTime - shot.time) / 1000;
         const bulletTravel = bulletSpeed * timeAlive;
         const bulletLifetime = (currentTime - shot.time) / 1000;
 
-        // Bullet path prediction
+      
         const bulletPath = {
             start: { x: shot.x, y: shot.y },
             end: {
@@ -264,7 +262,7 @@ export function calculateDodge(enemy, scenarioMatrix, shotInfo) {
             }
         };
 
-        // Calculate interception parameters
+      
         const enemyToBulletPath = distanceToLine(
             { x: enemy.x, y: enemy.y },
             bulletPath.start,
@@ -274,14 +272,14 @@ export function calculateDodge(enemy, scenarioMatrix, shotInfo) {
         const timeToImpact = enemyToBulletPath.distance / bulletSpeed;
         const impactDanger = Math.max(0, 1 - (timeToImpact / 1.5));
 
-        // Threat classification
+   
         if (impactDanger > 0.3) {
             const avoidanceDirection = normalizeVector({
                 x: -(bulletPath.end.y - bulletPath.start.y),
                 y: bulletPath.end.x - bulletPath.start.x
             });
 
-            // Dynamic weighting based on threat level and personality
+            
             const threatWeight = impactDanger * (1 + personalityFactor);
             dodgeVector.x += avoidanceDirection.x * threatWeight;
             dodgeVector.y += avoidanceDirection.y * threatWeight;
@@ -292,14 +290,14 @@ export function calculateDodge(enemy, scenarioMatrix, shotInfo) {
         }
     });
 
-    // Intelligent escape pattern generation
+   
     if (threatAssessment.immediateDanger > 0) {
-        // Normalize preferred direction
+       
         threatAssessment.preferredDodgeDirection = normalizeVector(
             threatAssessment.preferredDodgeDirection
         );
 
-        // Add momentum-based evasion
+      
         const momentumFactor = normalizeVector({
             x: enemy.velocity.x,
             y: enemy.velocity.y
@@ -308,31 +306,31 @@ export function calculateDodge(enemy, scenarioMatrix, shotInfo) {
         dodgeVector.x += momentumFactor.x * 0.7 * personalityFactor;
         dodgeVector.y += momentumFactor.y * 0.7 * personalityFactor;
 
-        // Strategic randomization
+     
         const randomAngle = (Math.random() - 0.5) * Math.PI/4 * (1 - personalityFactor);
         dodgeVector.x = dodgeVector.x * Math.cos(randomAngle) - dodgeVector.y * Math.sin(randomAngle);
         dodgeVector.y = dodgeVector.x * Math.sin(randomAngle) + dodgeVector.y * Math.cos(randomAngle);
     }
 
-    // Environmental awareness system
+  
     const wallPush = basicWallAvoidance(enemy.x, enemy.y, scenarioMatrix);
     const combinedVector = {
         x: dodgeVector.x * (1.5 + threatAssessment.immediateDanger) + wallPush.x * 0.5,
         y: dodgeVector.y * (1.5 + threatAssessment.immediateDanger) + wallPush.y * 0.5
     };
 
-    // Dynamic path validation
+   
     if (threatAssessment.immediateDanger > 0.7) {
         const safetyCheckPath = aStarPathFind(
             scenarioMatrix,
             enemy.x, enemy.y,
             enemy.x + combinedVector.x * 200,
             enemy.y + combinedVector.y * 200,
-            3 // Short path lookahead
+            3 
         );
 
         if (safetyCheckPath.length < 3) {
-            // Find alternative safe direction
+           
             const fallbackDir = findSafeRetreatDirection(enemy, scenarioMatrix);
             combinedVector.x = fallbackDir.x;
             combinedVector.y = fallbackDir.y;
@@ -347,16 +345,16 @@ export function markovDecisionProcess(enemy, px, py, scenarioMatrix) {
     const currentState = memory.lastState;
     const stateDuration = Date.now() - memory.stateStartTime;
     
-    // Enhanced camping detection with path validation
+    
     const { isCamping, campPosition } = detectCampingPattern(memory.playerPositions);
     const inFavoriteZone = isInFavoriteZone(memory.favoriteZones, px, py);
     
-    // Dynamic aggression calculation with suppression factor
+    
     const baseAggression = calculateAggression(memory);
     const suppression = calculateSuppressionLevel(enemy);
     const effectiveAggression = Math.min(baseAggression * (1 - suppression), 1);
 
-    // State transition matrix
+    
     const stateWeights = {
         attack: 0.4 + effectiveAggression * 0.5,
         flanking: 0.3 + suppression * 0.4,
@@ -366,7 +364,7 @@ export function markovDecisionProcess(enemy, px, py, scenarioMatrix) {
 
     let nextState = currentState;
     
-    // Immediate state transitions
+    
     if (isCamping) {
         nextState = weightedRandom(['flanking', 'attack'], [0.7, 0.3]);
     } else if (stateDuration > 4000) {
@@ -381,22 +379,22 @@ export function markovDecisionProcess(enemy, px, py, scenarioMatrix) {
         );
     }
 
-    // Emergency transitions
+   
     if (suppression > 0.7 && nextState !== 'cover') {
         nextState = 'cover';
     }
 
-    // State change handling
+   
     if (nextState !== currentState) {
         memory.lastState = nextState;
         memory.stateStartTime = Date.now();
         memory.lastCampPosition = campPosition;
         
-        // Reset pathfinding cache
+        
         delete memory.currentPath;
     }
 
-    // Execute state behaviors
+   
     switch(nextState) {
         case 'flanking':
             return maintainFlankingBehavior(enemy, px, py, scenarioMatrix, memory);
@@ -449,7 +447,7 @@ function maintainFlankingBehavior(enemy, targetX, targetY, scenarioMatrix, memor
         );
     }
     
-    // Dynamic path refreshing
+
     if (pathProgress(enemy, memory.currentPath) > 0.8) {
         memory.currentPath = generateSmartFlank(
             scenarioMatrix, 
@@ -466,7 +464,7 @@ function maintainFlankingBehavior(enemy, targetX, targetY, scenarioMatrix, memor
 function executeAttackBehavior(enemy, targetX, targetY, scenarioMatrix, aggression) {
     const attackPath = generateRushedAttack(scenarioMatrix, enemy, targetX, targetY, aggression);
     
-    // Add suppression evasion
+
     if (calculateSuppressionLevel(enemy) > 0.4) {
         return combinePaths(
             attackPath,
@@ -486,7 +484,7 @@ function performCoverBehavior(enemy, scenarioMatrix, memory) {
         );
     }
     
-    // Add covering fire positions
+
     if (pathProgress(enemy, memory.currentCover) > 0.9) {
         return combinePaths(
             memory.currentCover,
@@ -497,7 +495,7 @@ function performCoverBehavior(enemy, scenarioMatrix, memory) {
     return memory.currentCover;
 }
 
-// Support Systems (Integrated)
+
 function calculateSuppressionLevel(enemy) {
     return Math.min(1, 
         (enemy.memory.playerShots?.length || 0) / 10 +
@@ -518,7 +516,7 @@ function pathProgress(enemy, path) {
     return traveled / totalDistance;
 }
 
-export function generateFlankingPath(scenarioMatrix, startX, startY, targetX, targetY) { // Added matrix
+export function generateFlankingPath(scenarioMatrix, startX, startY, targetX, targetY) {
     const flankAngle = Math.atan2(targetY - startY, targetX - startX) + (Math.PI/2);
     const flankDistance = 200;
     return aStarPathFind(
@@ -531,7 +529,7 @@ export function generateFlankingPath(scenarioMatrix, startX, startY, targetX, ta
 }
 
 export function generateStrategicCover(scenarioMatrix, enemy, favoriteZones) {
-    // Get zone covers and ensure they're arrays
+ 
     const zoneCovers = favoriteZones.flatMap(([zoneX, zoneY]) => {
         const zoneCenter = {
             x: zoneX * 200 + 100,
@@ -541,11 +539,11 @@ export function generateStrategicCover(scenarioMatrix, enemy, favoriteZones) {
         return cover ? [cover] : [];
     });
 
-    // Get nearby cover and ensure it's an array
+
     const nearbyCover = findNearbyCover(scenarioMatrix, enemy.x, enemy.y);
     const nearbyCovers = nearbyCover ? [nearbyCover] : [];
 
-    // Combine all covers
+ 
     const allCovers = [...zoneCovers, ...nearbyCovers];
     
     if (allCovers.length > 0) {
@@ -602,14 +600,13 @@ function isInFavoriteZone(favoriteZones, x, y) {
 }
 
 
-// Enhanced predictive aiming
+
 export function predictiveAim(path, memory) {
     if (!path || path.length === 0) path = [memory.lastCampPosition || { x: 0, y: 0 }];
     
     const currentPos = memory.playerPositions[memory.playerPositions.length - 1] || { x: 0, y: 0 };
     const predictedPos = predictFromMemory(memory);
     
-    // Incorporate favorite zone prediction
     if (isInFavoriteZone(memory.favoriteZones, currentPos.x, currentPos.y)) {
         predictedPos.x += (predictedPos.x - memory.favoriteZones[0][0]*200) * 0.3;
         predictedPos.y += (predictedPos.y - memory.favoriteZones[0][1]*200) * 0.3;
@@ -619,7 +616,6 @@ export function predictiveAim(path, memory) {
     const vy = currentPos?.vy || 0;
     const pathStart = path[0] || { x: 0, y: 0 };
     
-    // Aggressive leading
     const leadFactor = 1.5 + (calculateAggression(memory) * 0.7);
     
     return Math.atan2(

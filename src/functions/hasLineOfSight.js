@@ -1,6 +1,5 @@
 export function hasLineOfSight(scenarioMatrix, px, py, ex, ey) {
-    const toGrid = (val) => Math.floor(val / 20); // Convert pixel to grid coordinates
-
+    const toGrid = (val) => Math.floor(val / 20); 
     const gridX1 = toGrid(px);
     const gridY1 = toGrid(py);
     const gridX2 = toGrid(ex);
