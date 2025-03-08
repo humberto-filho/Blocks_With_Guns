@@ -1,5 +1,7 @@
 import { aStarPathFind } from "../helpers/aStarPathFind.js";
-import { basicWallAvoidance } from "../helpers/wallsLogic.js";
+import {djikstraPathFind} from '../helpers/djikstraPathFind.js';
+import { basicWallAvoidance, wallAwareVelocity } from "../helpers/wallsLogic.js";
+
 import { 
     updateMemory, 
     predictFromMemory, 
@@ -91,11 +93,11 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
             }
             break;
         case 'medium':
-            let timeToReach = dist / 200; 
+            let mReach = dist / 200; 
             let aPath = aStarPathFind(scenarioMatrix, enemy.x, enemy.y, px, py);
             let bPos = {
-                x: px + vx * timeToReach,
-                y: py + vy * timeToReach
+                x: px + vx * mReach,
+                y: py + vy * mReach
             };
     
         
