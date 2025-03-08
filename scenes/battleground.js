@@ -4,6 +4,7 @@ import { handleMovement } from "../functions/handleMovement.js";
 import { handleShooting } from "../functions/handleShooting.js";
 import { enemyAI } from "../functions/enemyAI.js";
 import { hasLineOfSight} from "../functions/hasLineOfSight.js";
+import { initializeMemory } from "../functions/markovHard.js";
 class Battleground extends Phaser.Scene {
     constructor(){
         super({
@@ -24,7 +25,7 @@ class Battleground extends Phaser.Scene {
         this.shootCooldown = 300;
         this.lastShotTime = 0;
         this.scenarioMatrix = null;
-        this.angleCooldown = 0;
+        this.angleCooldown = 50;
         this.playerHearts = 5;
         this.enemyHearts = 5;
         this.currentTime = 0;
@@ -45,6 +46,8 @@ class Battleground extends Phaser.Scene {
         this.load.audio('battleground', 'assets/battleground.mp3');
         this.load.image('bg', 'assets/battlegroundbg.png');
         this.load.audio('error', 'assets/error.mp3');
+        this.load.audio('winning_sound', 'assets/winning_sound.mp3');
+        this.load.audio('defeated_sound', 'assets/defeated_sound.mp3');
     }
 
     create(data){
@@ -219,6 +222,10 @@ class Battleground extends Phaser.Scene {
         this.scenarioMatrix = scenarioMatrix;
         this.difficulty = data.difficulty;
         this.borderGr = this.add.graphics();
+
+        if (data.difficulty == 'hard'){
+            initializeMemory(this.enemy);
+        }
     }
 
 
@@ -228,6 +235,14 @@ class Battleground extends Phaser.Scene {
         let speed = 70;
         let infosPlayer = handleMovement(this.player, this.keyW, this.keyA, this.keyS, this.keyD, speed, this.playerX, this.playerY);
         handleGun(this.gun,mouseX, mouseY, infosPlayer.x, infosPlayer.y);
+        
+        const shotInfo = {
+            time: this.time.now,
+            angle: this.gun.rotation,
+            x: this.player.x,
+            y: this.player.y
+        };
+        
         const aiDecision = enemyAI(
             this.scenarioMatrix,
             infosPlayer.x,
@@ -235,7 +250,8 @@ class Battleground extends Phaser.Scene {
             infosPlayer.vx,
             infosPlayer.vy,
             this.difficulty,
-            this.enemy
+            this.enemy,
+            shotInfo 
         );
 
         
@@ -245,10 +261,13 @@ class Battleground extends Phaser.Scene {
             aiDecision.movement.x * aiDecision.speed,
             aiDecision.movement.y * aiDecision.speed
         );
-    
+        
+        if (this.enemy.shootCooldown <= 0){
+            this.enemy.shootCooldown = 0;
+        }
+
         if (this.canShoot && this.enemy.shootCooldown <= 0) {
             this.enemyShoot(aiDecision.fireAngle);
-            this.enemy.shootCooldown = 500; 
         }
         
 
@@ -257,11 +276,11 @@ class Battleground extends Phaser.Scene {
             this.enemy.shootCooldown -= 1;
         }
 
-        if(this.angleCooldown > 0){
+        if(this.angleCooldown > 0 && this.difficulty == 'easy'){
             this.angleCooldown -= 1;
         }
 
-        if(this.angleCooldown <= 0){
+        if(this.angleCooldown <= 0 && this.difficulty == 'easy'){
             this.angleCooldown = 50;
         }
         
@@ -301,26 +320,35 @@ class Battleground extends Phaser.Scene {
     
 
     gameOver(playerWon) {
-
+        this.sound.stopAll();
         this.physics.pause();
-
+        if (playerWon){
+            this.sound.play('winning_sound', {
+                volume : 0.5
+            });
+        } else { 
+            this.sound.play('defeated_sound', {
+                volume : 0.5
+            });
+        }
 
         this.add.rectangle(240, 240, 400, 100, 0x000000).setDepth(2);
         this.add.rectangle(240, 290, 400, 100, 0x000000).setDepth(2);
 
         this.add.text(250, 250, playerWon ? 'Vitória !!' : 'Derrota :(', { 
+            backgroundColor : 'white',
             fontSize: '20px', 
             fill: 'red' 
         }).setOrigin(0.5, 0.5).setDepth(3);
         
         this.add.text(250, 300, 'Clique para ir à tela inicial', { 
+            backgroundColor: 'white',
             fontSize: '20px', 
             fill: 'red' 
         }).setOrigin(0.5, 0.5).setDepth(3);
         
         this.input.once('pointerdown', () => {
             this.textures.remove('bg');
-            this.sound.stopAll();
             this.scene.start('welcome');
         });
     }
@@ -340,16 +368,17 @@ class Battleground extends Phaser.Scene {
             this.sound.play('shot',{
                 volume: 0.1
             });
+            this.enemy.shootCooldown = 500;
             bullet.setPosition(this.enemy.x, this.enemy.y);
             bullet.setRotation(fireAngle);
             bullet.setActive(true);
             bullet.setVisible(true);
             bullet.body.enable = true;
             bullet.body.setVelocity(0, 0); 
-            const speed = 150;
+            const bulletSpeed = 200;
             bullet.body.setVelocity(
-                Math.cos(fireAngle) * speed,
-                Math.sin(fireAngle) * speed
+                Math.cos(fireAngle) * bulletSpeed,
+                Math.sin(fireAngle) * bulletSpeed
             );
         }
     }
@@ -383,7 +412,6 @@ class Battleground extends Phaser.Scene {
             const mouseY = this.input.activePointer.y;
             const playerX = this.player.body.position.x;
             const playerY = this.player.body.position.y;
-            
             handleShooting(bullet, mouseX, mouseY, playerX, playerY);
             this.lastShotTime = this.currentTime;
         }}

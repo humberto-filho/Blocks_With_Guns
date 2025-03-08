@@ -24,7 +24,7 @@ class Difficulties extends Phaser.Scene{
         this.easyButton = this.add.image(102, 50, 'easy').setOrigin(0,0).setDepth(1).setInteractive({useHandCursor: true});
         this.mediumButton = this.add.image(85, 152, 'medium').setOrigin(0,0).setDepth(1).setInteractive({useHandCursor: true});
         this.hardButton = this.add.image(71, 268, 'hard').setOrigin(0,0).setDepth(1).setInteractive({useHandCursor: true});
-        this.insaneButton = this.add.image(82, 380, 'insane').setOrigin(0,0).setDepth(1).setInteractive({useHandCursor: true});
+      
 
         this.easyButton.on('pointerover', () => {
             this.easyButton.setTint(0xff7f7f);
@@ -70,21 +70,8 @@ class Difficulties extends Phaser.Scene{
             let playerData = {player: data.player, difficulty : 'hard'};
             this.scene.start('battleground', playerData);
         });
-        //
-        this.insaneButton.on('pointerover', () => {
-            this.insaneButton.setTint(0xff7f7f);
-            this.sound.play('button_hover');
-        });
 
-        this.insaneButton.on('pointerout', () => {
-            this.insaneButton.setTint(0xffffff);
-        });
 
-        this.insaneButton.on('pointerup', () => {
-            this.sound.stopAll();
-            let playerData = {player: data.player, difficulty : 'insane'};
-            this.scene.start('battleground', playerData);
-        });
     }
 
     update(){
