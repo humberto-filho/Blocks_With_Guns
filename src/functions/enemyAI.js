@@ -34,6 +34,7 @@ function getPathDirection(path, enemy) {
 const SMOOTHING_FACTOR = 0.15;
 const MAX_BASE_SPEED = 10;
 
+
 export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotInfo) {
     const memoryPrediction = predictFromMemory(enemy.memory);
     if (!enemy.smoothedVelocity) enemy.smoothedVelocity = { x: 0, y: 0 };
@@ -52,30 +53,14 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
               
     let physicsWeight = engagementDuration < 5000 ? 0.5 : 0.8;
     let memoryWeight = 1 - physicsWeight;
-    var timeToReach = dist / bulletSpeed;
+    
 
     if(shotInfo){
         updateMemory(enemy, px, py, vx, vy, shotInfo);
     }
-
-    const dodgeVector = calculateDodge(enemy, scenarioMatrix);
-    var physicsPrediction = {
-        x: px + vx * timeToReach,
-        y: py + vy * timeToReach
-    };
-
     
-    let hybridPrediction = {
-        x: physicsPrediction.x * physicsWeight + memoryPrediction.x * memoryWeight,
-        y: physicsPrediction.y * physicsWeight + memoryPrediction.y * memoryWeight
-    };
 
-    let markovPath = markovDecisionProcess(
-        enemy, 
-        hybridPrediction.x,
-        hybridPrediction.y,
-        scenarioMatrix
-    );
+
 
     switch(difficulty) {
         case 'easy':
@@ -106,7 +91,14 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
             }
             break;
         case 'medium':
+            let timeToReach = dist / 200; 
             let aPath = aStarPathFind(scenarioMatrix, enemy.x, enemy.y, px, py);
+            let bPos = {
+                x: px + vx * timeToReach,
+                y: py + vy * timeToReach
+            };
+    
+        
             if (dist < maintainDistance){
                 const approachDirection ={
                     x : dx * (dist / 500),
@@ -115,13 +107,13 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
                 movementVector = wallAwareVelocity(approachDirection, avoidance);
                 return {
                     speed: 12,
-                    fireAngle: Math.atan2(physicsPrediction.y - enemy.y, physicsPrediction.x - enemy.x),
+                    fireAngle: Math.atan2(bPos.y - enemy.y, bPos.x - enemy.x),
                     movement: movementVector
                 }; 
             } else {
                 return {
                     speed: 12,
-                    fireAngle: Math.atan2(physicsPrediction.y - enemy.y, physicsPrediction.x - enemy.x),
+                    fireAngle: Math.atan2(bPos.y - enemy.y, bPos.x - enemy.x),
                     movement: wallAwareVelocity(
                         getPathDirection(aPath, enemy),
                         avoidance
@@ -130,19 +122,21 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
             }
             break;
             case 'hard':
-        
+
+                
            const bulletThreat = calculateBulletThreatLevel(enemy);
            const physicsWeight = engagementDuration < 5000 ? 0.5 : 0.8;
            const memoryWeight = 1 - physicsWeight;
-           const timeToReach = dist / 200; 
-   
+           let timeToReach = dist / 200; 
+            
        
            const physicsPrediction = {
                x: px + vx * timeToReach,
                y: py + vy * timeToReach
            };
            const memoryPrediction = predictFromMemory(enemy.memory);
-           
+
+
            const hybridPrediction = {
                x: physicsPrediction.x * physicsWeight + memoryPrediction.x * memoryWeight,
                y: physicsPrediction.y * physicsWeight + memoryPrediction.y * memoryWeight
