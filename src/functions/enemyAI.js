@@ -21,20 +21,34 @@ function weightedAverageAngle(angle1, angle2, weight) {
 }
 
 function getPathDirection(path, enemy) {
-    if (path.length < 2) return { x: 0, y: 0 };
-    
-    const nextStep = path[1];
-    const targetX = nextStep.x * 20 + 10;
-    const targetY = nextStep.y * 20 + 10;
-    
-    return {
-        x: targetX - enemy.x,
-        y: targetY - enemy.y
-    };
-}
+    // Handle empty or invalid path first
+    if (!path || path.length === 0) {
+        return { x: 0, y: 0 };
+    }
+    if (!enemy?.x || !enemy?.y) return { x: 0, y: 0 };
+    // Always normalize the first valid point we find
+    const firstValidPoint = path.find(p => p !== undefined);
+    if (!firstValidPoint) {
+        return { x: 0, y: 0 };
+    }
 
-const SMOOTHING_FACTOR = 0.15;
-const MAX_BASE_SPEED = 10;
+    // Use immediate goal for direction if short path
+    if (path.length === 1) {
+        return normalizeVector({
+            x: firstValidPoint.x * 20 + 10 - enemy.x,
+            y: firstValidPoint.y * 20 + 10 - enemy.y
+        });
+    }
+
+    // Look 3 steps ahead for better direction
+    const lookAheadIndex = Math.min(3, path.length - 1);
+    const target = path[lookAheadIndex] || firstValidPoint;
+    
+    return normalizeVector({
+        x: target.x * 20 + 10 - enemy.x,
+        y: target.y * 20 + 10 - enemy.y
+    });
+}
 
 
 export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotInfo) {
@@ -94,17 +108,17 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
             break;
         case 'medium':
             let mReach = dist / 200; 
-            let aPath = aStarPathFind(scenarioMatrix, enemy.x, enemy.y, px, py);
+            let aPath = djikstraPathFind(scenarioMatrix, enemy.x, enemy.y, px, py);
             let bPos = {
                 x: px + vx * mReach,
                 y: py + vy * mReach
             };
     
         
-            if (dist < maintainDistance){
+            if (dist < 300){
                 const approachDirection ={
-                    x : dx * (dist / 500),
-                    y: dy * (dist / 500)
+                    x : dx * (dist / 300),
+                    y: dy * (dist / 300)
                 }
                 movementVector = wallAwareVelocity(approachDirection, avoidance);
                 return {
@@ -114,7 +128,7 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
                 }; 
             } else {
                 return {
-                    speed: 12,
+                    speed: 80,
                     fireAngle: Math.atan2(bPos.y - enemy.y, bPos.x - enemy.x),
                     movement: wallAwareVelocity(
                         getPathDirection(aPath, enemy),
@@ -124,101 +138,120 @@ export function enemyAI(scenarioMatrix, px, py, vx, vy, difficulty, enemy, shotI
             }
             break;
             case 'hard':
-
-                
-           const bulletThreat = calculateBulletThreatLevel(enemy);
-           const physicsWeight = engagementDuration < 5000 ? 0.5 : 0.8;
-           const memoryWeight = 1 - physicsWeight;
-           let timeToReach = dist / 200; 
+                const bulletSpeed = 200;
+                const playerSpeed = 70;
+                const enemySpeed = 80;
+                const DODGE_DISTANCE = 80;
+                const OPTIMAL_DISTANCE = 150;
             
-       
-           const physicsPrediction = {
-               x: px + vx * timeToReach,
-               y: py + vy * timeToReach
-           };
-           const memoryPrediction = predictFromMemory(enemy.memory);
+                // Calculate bullet threat and dodge vector
+                const bulletThreat = calculateBulletThreatLevel(enemy);
+                const dodgeVector = calculateDodge(enemy, scenarioMatrix);
+                const now = Date.now();
+            
+                // Check for immediate bullet threats
+                let immediateDanger = false;
+                enemy.memory.playerShots?.forEach(shot => {
+                    const timeAlive = (now - shot.time) / 1000;
+                    const bulletPos = {
+                        x: shot.x + Math.cos(shot.angle) * bulletSpeed * timeAlive,
+                        y: shot.y + Math.sin(shot.angle) * bulletSpeed * timeAlive
+                    };
+                    if (Math.hypot(bulletPos.x - enemy.x, bulletPos.y - enemy.y) < DODGE_DISTANCE) {
+                        immediateDanger = true;
+                    }
+                });
+            
+                // Improved prediction logic with enemy movement consideration
+                let predictedX = px;
+                let predictedY = py;
+                if (!immediateDanger) {
+                    let timeToReach = Math.hypot(px - enemy.x, py - enemy.y) / (bulletSpeed + enemySpeed);
+                    for (let i = 0; i < 3; i++) {
+                        const enemyMoveX = (enemy.speed || 0) * Math.cos(enemy.rotation || 0);
+                        const enemyMoveY = (enemy.speed || 0) * Math.sin(enemy.rotation || 0);
+                        
+                        if (isNaN(enemyMoveX) || isNaN(enemyMoveY)) break;
+                        
+                        predictedX = px + vx * timeToReach - enemyMoveX * timeToReach;
+                        predictedY = py + vy * timeToReach - enemyMoveY * timeToReach;
+                        timeToReach = Math.hypot(predictedX - enemy.x, predictedY - enemy.y) / bulletSpeed;
+                    }
+                }
+                            
+                // Movement calculation
+                let movement = { x: 0, y: 0 };
+                const wallAdjust = basicWallAvoidance(enemy.x, enemy.y, scenarioMatrix);
+                    // Improved pathfinding with approach forcing
+                    const path = aStarPathFind(scenarioMatrix, enemy.x, enemy.y, predictedX, predictedY, {
+                    diagonalCost: 1.4,
+                    heuristicWeight: 1.2,
+                    avoidRecent: enemy.recentNodes || []
+                });
+                if (immediateDanger) {
+                    // Dodge behavior with forward momentum preservation
+                    movement = {
+                        x: dodgeVector.x * 1.5 + wallAdjust.x * 0.3,
+                        y: dodgeVector.y * 1.5 + wallAdjust.y * 0.3
+                    };
+                } else {
+             
+            
+                   // Store recent path nodes for 2 seconds
+                    enemy.recentNodes = path.slice(0, 3).map(p => `${Math.floor(p.x/20)},${Math.floor(p.y/20)}`);
+                    
+                    const pathDir = getPathDirection(path, enemy);
+                    const currentDist = Math.hypot(dx, dy);
+                    
+                    // Dynamic approach weighting
+                    const approachForce = Math.min(1, currentDist / OPTIMAL_DISTANCE);
+                    const pathWeight = 0.8 + (approachForce * 0.4);
+                    const directWeight = 0.4 - (approachForce * 0.2);
+            
+                    movement = {
+                        x: (pathDir.x * pathWeight) + (dx/currentDist) * directWeight,
+                        y: (pathDir.y * pathWeight) + (dy/currentDist) * directWeight
+                    };
+            
+                    // Add wall avoidance
+                    movement.x += wallAdjust.x * 0.4;
+                    movement.y += wallAdjust.y * 0.4;
+                    }
+                    // Add validation for weapon position
+                    const WEAPON_OFFSET = 15; // Reduced for better visibility
+                    const calculateWeaponPosition = (fireAngle) => {
+                        const WEAPON_OFFSET = 25;
+                        const enemyX = typeof enemy.x === 'number' ? enemy.x : 0;
+                        const enemyY = typeof enemy.y === 'number' ? enemy.y : 0;
+                        const validAngle = typeof fireAngle === 'number' ? fireAngle : 0;
+                        
+                        return {
+                            x: enemyX + Math.cos(validAngle) * WEAPON_OFFSET,
+                            y: enemyY + Math.sin(validAngle) * WEAPON_OFFSET,
+                            rotation: validAngle
+                        };
+                    };
 
+                    // Add null check before using path
+                    if (!path || path.length === 0) {
+                        // Fallback movement
+                        movement = {
+                            x: (dx/dist) * 0.8 + wallAdjust.x * 0.4,
+                            y: (dy/dist) * 0.8 + wallAdjust.y * 0.4
+                        };
+                    }
 
-           const hybridPrediction = {
-               x: physicsPrediction.x * physicsWeight + memoryPrediction.x * memoryWeight,
-               y: physicsPrediction.y * physicsWeight + memoryPrediction.y * memoryWeight
-           };
-   
-  
-           const markovPath = markovDecisionProcess(
-               enemy, 
-               hybridPrediction.x,
-               hybridPrediction.y,
-               scenarioMatrix
-           );
-   
-           const dodgeVector = calculateDodge(enemy, scenarioMatrix);
-           const pathDirection = getPathDirection(markovPath, enemy);
-           
-    
-           const dodgeWeight = Math.min(1.5, 0.8 + bulletThreat * 0.7);
-           const pathWeight = 1.2 - bulletThreat * 0.5;
-           const wallWeight = 1.0 - bulletThreat * 0.3;
-   
-   
-           let rawMovement = combineVectors(
-               { x: pathDirection.x * pathWeight, y: pathDirection.y * pathWeight },
-               { x: dodgeVector.x * dodgeWeight, y: dodgeVector.y * dodgeWeight }
-           );
-   
-           const wallAdjustment = basicWallAvoidance(enemy.x, enemy.y, scenarioMatrix);
-           rawMovement.x += wallAdjustment.x * wallWeight;
-           rawMovement.y += wallAdjustment.y * wallWeight;
-   
-           const currentMaxSpeed = MAX_BASE_SPEED * (1 + bulletThreat * 0.5);
-           const dynamicSmoothing = SMOOTHING_FACTOR * (1 - bulletThreat * 0.5);
-           
-           enemy.smoothedVelocity.x = Phaser.Math.Linear(
-               enemy.smoothedVelocity.x,
-               rawMovement.x,
-               dynamicSmoothing
-           );
-           enemy.smoothedVelocity.y = Phaser.Math.Linear(
-               enemy.smoothedVelocity.y,
-               rawMovement.y,
-               dynamicSmoothing
-           );
-   
-      
-           const velocity = normalizeVector(enemy.smoothedVelocity);
-           velocity.x *= currentMaxSpeed;
-           velocity.y *= currentMaxSpeed;
-   
-    
-           if (dist < 100) {
-               const speedMod = dist / 200;
-               velocity.x *= speedMod;
-               velocity.y *= speedMod;
-           }
-   
-    
-           let aimPrediction;
-           if (bulletThreat > 0.7) {
-               aimPrediction = predictiveAim([], enemy.memory);
-           } else {
-               const physicsAim = Math.atan2(
-                   physicsPrediction.y - enemy.y,
-                   physicsPrediction.x - enemy.x
-               );
-               const memoryAim = predictiveAim(markovPath, enemy.memory);
-               aimPrediction = weightedAverageAngle(
-                   physicsAim,
-                   memoryAim,
-                   0.8 - bulletThreat * 0.3
-               );
-           }
-   
-           return {
-               speed: currentMaxSpeed,
-               fireAngle: aimPrediction,
-               movement: velocity
-         
-            };
-            break;
-    }
+                    // Speed adjustments with distance-based modulation
+                    const normalizedMove = normalizeVector(movement);
+                    let dynamicSpeed = enemySpeed * (immediateDanger ? 1.3 : Math.min(1.2, Math.max(0.8, dist/OPTIMAL_DISTANCE)));
+                    const hardFireAngle = immediateDanger ? enemy.rotation : Math.atan2(predictedY - enemy.y, predictedX - enemy.x);
+                    return {
+                        speed: dynamicSpeed,
+                        fireAngle: hardFireAngle,
+                        movement: normalizedMove,
+                        shouldFire: !immediateDanger && dist < 500,
+                        weapon: calculateWeaponPosition(hardFireAngle)
+                    };
+                    break;
+                }  
 }
