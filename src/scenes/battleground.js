@@ -176,6 +176,8 @@ class Battleground extends Phaser.Scene {
             this.player = this.physics.add.sprite(this.playerX, this.playerY, 'player', 1).setOrigin(0.5, 0.5).setDepth(1).setScale(1).setAlpha(0.8);
         } else if (data.player == 'blue'){
             this.player = this.physics.add.sprite(this.playerX, this.playerY, 'player', 2).setOrigin(0.5, 0.5).setDepth(1).setScale(1).setAlpha(0.8);
+        } else if (data.player == 'white'){ 
+            this.player = this.physics.add.sprite(this.playerX, this.playerY, 'white').setOrigin(0.5, 0.5).setDepth(1).setScale(1).setAlpha(0.8);
         } else { 
             alert("data not found");
         }
