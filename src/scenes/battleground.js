@@ -22,12 +22,12 @@ class Battleground extends Phaser.Scene {
         this.player = null;
         this.enemy = null;
         this.gun = null;
-        this.shootCooldown = 250;
+        this.shootCooldown = 300;
         this.lastShotTime = 0;
         this.scenarioMatrix = null;
         this.angleCooldown = 50;
-        this.playerHearts = 10;
-        this.enemyHearts = 10;
+        this.playerHearts = 5;
+        this.enemyHearts = 5;
         this.currentTime = 0;
         this.colorCooldown = 500;
     }
@@ -78,18 +78,18 @@ class Battleground extends Phaser.Scene {
         }).setOrigin(0.5);
 
         this.playerHeartsGroup = this.add.group();
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 5; i++) {
             this.playerHeartsGroup.add(
-                this.add.sprite(20 + i * 10, 40, 'heart')
-                    .setScale(1)
+                this.add.sprite(20 + i * 30, 40, 'heart')
+                    .setScale(3)
             );
         }
 
         this.enemyHeartsGroup = this.add.group();
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 5; i++) {
             this.enemyHeartsGroup.add(
-                this.add.sprite(475 - i * 10, 40, 'heart')
-                    .setScale(1)
+                this.add.sprite(475 - i * 30, 40, 'heart')
+                    .setScale(3)
             );
         }
 
@@ -180,41 +180,28 @@ class Battleground extends Phaser.Scene {
             alert("data not found");
         }
 
-       // In Battleground's create() method
-        this.enemy = this.physics.add.sprite(enemyX, enemyY, 'enemy')
-        .setScale(1)
-        .setDepth(1)
-        .setOrigin(0.5, 0.5);
-        this.enemy.speed = 80; 
-
+        this.enemy = this.physics.add.sprite(enemyX, enemyY, 'enemy').setScale(1.25).setDepth(1).setOrigin(0.5, 0.5).setScale(1)
         this.gun = this.physics.add.sprite(this.playerX, this.playerY, 'gun').setScale(1).setDepth(2).setOrigin(0.5, 0.5);
-        this.enemyGun = this.physics.add.sprite(enemyX, enemyY, 'gun')
-        .setScale(1)
-        .setDepth(2)
-        .setOrigin(0.5, 0.5);
+        this.enemyGun = this.physics.add.sprite(this.enemyX, this.enemyY, 'gun').setScale(1).setDepth(2).setOrigin(0.5, 0.5);
         this.physics.add.collider(this.player, this.walls);
         this.physics.add.collider(this.enemy, this.walls);
         this.enemy.canShoot = true;
         this.enemy.shootCooldown = 0;
 
- 
-    this.physics.add.overlap(this.enemy, this.playerBullets, (enemy, bullet) => {
-        if (!bullet.active) return; 
-        bullet.disableBody(true, true); 
-        this.enemyHearts = Math.max(this.enemyHearts - 1, 0);
-        this.updateHearts(this.enemyHeartsGroup, this.enemyHearts);
-        if (this.enemyHearts <= 0) this.gameOver(true);
-    });
+        this.physics.add.overlap(this.enemy, this.playerBullets, (enemy, bullet) => {
+            bullet.disableBody(true, true); 
+            this.enemyHearts = Math.max(this.enemyHearts - 1, 0);
+            this.updateHearts(this.enemyHeartsGroup, this.enemyHearts);
+            if (this.enemyHearts <= 0) this.gameOver(true);
+        });
 
-    // Modify the player bullet overlap handler
-    this.physics.add.overlap(this.player, this.enemyBullets, (player, bullet) => {
-        if (!bullet.active) return; 
-        bullet.disableBody(true, true); 
-        this.playerHearts = Math.max(this.playerHearts - 1, 0);
-        this.updateHearts(this.playerHeartsGroup, this.playerHearts);
-        if (this.playerHearts <= 0) this.gameOver(false);
-    });
 
+        this.physics.add.overlap(this.player, this.enemyBullets, (player, bullet) => {
+            bullet.disableBody(true, true); 
+            this.playerHearts = Math.max(this.playerHearts - 1, 0);
+            this.updateHearts(this.playerHeartsGroup, this.playerHearts);
+            if (this.playerHearts <= 0) this.gameOver(false);
+        });
 
         this.physics.world.on('worldbounds', (body) => {
             body.gameObject.destroy();
@@ -241,26 +228,6 @@ class Battleground extends Phaser.Scene {
         }
     }
 
-    // In Battleground class:
-    handleEnemyGun(fireAngle, gun, weaponX, weaponY) {
-        if (!gun || typeof weaponX !== 'number' || typeof weaponY !== 'number') {
-            if (gun) gun.setVisible(false);
-            return;
-        }
-        
-        gun.setVisible(true);
-        gun.setActive(true);
-        gun.setPosition(this.enemy.x, this.enemy.y);
-        gun.setRotation(fireAngle);
-        gun.setDepth(this.enemy.depth + 1);
-        gun.setOrigin(0.0, 0.5);
-        
-        if (isNaN(fireAngle)) {
-            console.warn('Invalid fire angle detected:', fireAngle);
-        }
-    }
-    
-        
 
     update(){
         let mouseX = this.input.activePointer.x;
@@ -298,20 +265,13 @@ class Battleground extends Phaser.Scene {
         if (this.enemy.shootCooldown <= 0){
             this.enemy.shootCooldown = 0;
         }
-        // In Battleground's update() method:
-        if (aiDecision.shouldFire && this.canShoot && this.enemy.shootCooldown <= 0) {
+
+        if (this.canShoot && this.enemy.shootCooldown <= 0) {
             this.enemyShoot(aiDecision.fireAngle);
         }
+        
 
-        // Update enemy gun handling
-        // Update the enemy gun handling call
-        this.handleEnemyGun(
-            aiDecision.fireAngle,
-            this.enemyGun,
-            aiDecision.weapon.x,  // Use AI-calculated weapon position
-            aiDecision.weapon.y
-        );
-
+    
         if (this.enemy.shootCooldown > 0) {
             this.enemy.shootCooldown -= 1;
         }
@@ -324,6 +284,7 @@ class Battleground extends Phaser.Scene {
             this.angleCooldown = 50;
         }
         
+        this.handleEnemyGun(aiDecision.fireAngle, this.enemyGun, this.enemy.x, this.enemy.y);
         this.timeRn = this.time.now;
         
         if(this.timeRn - this.currentTime >= 500){
@@ -392,20 +353,29 @@ class Battleground extends Phaser.Scene {
         });
     }
     
+
+    handleEnemyGun(fireAngle, gun, x, y){
+        gun.setOrigin(0, 0.5);
+        gun.setPosition(x, y);
+        if (this.angleCooldown == 50){
+        gun.setRotation(fireAngle);
+        }
+    }
+
     enemyShoot(fireAngle) {
         const bullet = this.enemyBullets.get();
         if (bullet && this.canShoot) {
             this.sound.play('shot',{
                 volume: 0.1
             });
-            this.enemy.shootCooldown = 250;
+            this.enemy.shootCooldown = 500;
             bullet.setPosition(this.enemy.x, this.enemy.y);
             bullet.setRotation(fireAngle);
             bullet.setActive(true);
             bullet.setVisible(true);
             bullet.body.enable = true;
             bullet.body.setVelocity(0, 0); 
-            const bulletSpeed = 300;
+            const bulletSpeed = 200;
             bullet.body.setVelocity(
                 Math.cos(fireAngle) * bulletSpeed,
                 Math.sin(fireAngle) * bulletSpeed

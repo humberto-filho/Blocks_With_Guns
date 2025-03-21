@@ -4,69 +4,6 @@ import { basicWallAvoidance } from "../helpers/wallsLogic.js";
 const MEMORY_DURATION = 30000;
 const AGGRESSION_BUFFER = 1500;
 
-const STUCK_RADIUS = 50; // 50 pixel radius
-const STUCK_DURATION = 3000; // 3 seconds
-
-// Modified isEnemyStuck function
-function isEnemyStuck(enemy) {
-    const now = Date.now();
-    
-    // Initialize movement history
-    if (!enemy.movementHistory) enemy.movementHistory = [];
-    
-    // Add current position with timestamp
-    enemy.movementHistory.push({ 
-        x: enemy.x, 
-        y: enemy.y, 
-        time: now 
-    });
-    
-    // Keep only last 3 seconds of data
-    enemy.movementHistory = enemy.movementHistory.filter(
-        entry => now - entry.time <= STUCK_DURATION
-    );
-    
-    // Need at least 2 seconds of data to check
-    if (enemy.movementHistory.length < 2) return false;
-    
-    // Check if all positions within 50px of oldest position
-    const referencePos = enemy.movementHistory[0];
-    return enemy.movementHistory.every(pos => 
-        Math.hypot(pos.x - referencePos.x, pos.y - referencePos.y) <= STUCK_RADIUS
-    ) && (now - referencePos.time >= STUCK_DURATION);
-}
-
-// Updated handleStuckSituation with cooldown
-function handleStuckSituation(enemy, scenarioMatrix) {
-    // Reset movement history after handling
-    enemy.movementHistory = [];
-    enemy.lastStuckTime = Date.now();
-    
-    const currentTarget = enemy.currentPath?.[enemy.currentPath.length-1];
-    if (!currentTarget) return [];
-    
-    // Try alternative path with node avoidance
-    const alternativePath = aStarPathFind(
-        scenarioMatrix,
-        enemy.x, enemy.y,
-        currentTarget.x, currentTarget.y,
-        {
-            avoidRecent: enemy.recentNodes || [],
-            heuristicWeight: 1.8,
-            backtrackLimit: 2
-        }
-    );
-    
-    // Fallback to original path if alternative fails
-    return alternativePath.length > 0 ? alternativePath : 
-        aStarPathFind(
-            scenarioMatrix,
-            enemy.x, enemy.y,
-            currentTarget.x, currentTarget.y,
-            { useStandard: true }
-        );
-}
-
 export function calculateBulletThreatLevel(enemy) {
     let maxThreat = 0;
     const now = Date.now();
@@ -408,176 +345,176 @@ export function markovDecisionProcess(enemy, px, py, scenarioMatrix) {
     const currentState = memory.lastState;
     const stateDuration = Date.now() - memory.stateStartTime;
     
-    // Analyze player patterns from 30s memory
-    const campingData = detectCampingPattern(memory.playerPositions);
-    const distanceProfile = calculateDistanceProfile(memory);
-    const zoneControl = calculateZoneControl(memory, enemy);
-    if (isEnemyStuck(enemy) && Date.now() - (enemy.lastStuckTime || 0) > 5000) {
-        return handleStuckSituation(enemy, scenarioMatrix);
-    }
     
-    // Dynamic aggression calculation
-    const baseAggression = Math.min(1, 
-        0.3 + (1 - distanceProfile.averageDistance / 400) * 0.7 +
-        (campingData.isCamping ? 0.2 : -0.1)
-    );
+    const { isCamping, campPosition } = detectCampingPattern(memory.playerPositions);
+    const inFavoriteZone = isInFavoriteZone(memory.favoriteZones, px, py);
     
-    // Adaptive strategy weights
-    const strategyWeights = {
-        attack: Math.min(0.6, baseAggression * 0.8),
-        flanking: 0.4 + (zoneControl * 0.5),
-        suppression: Math.min(0.7, memory.suppressionLevel * 1.2),
-        patrol: 0.2 - (baseAggression * 0.3)
+    
+    const baseAggression = calculateAggression(memory);
+    const suppression = calculateSuppressionLevel(enemy);
+    const effectiveAggression = Math.min(baseAggression * (1 - suppression), 1);
+
+    
+    const stateWeights = {
+        attack: 0.4 + effectiveAggression * 0.5,
+        flanking: 0.3 + suppression * 0.4,
+        cover: 0.2 - effectiveAggression * 0.1,
+        patrol: 0.1 - suppression * 0.05
     };
 
-    // State transition logic
     let nextState = currentState;
-    if (campingData.isCamping) {
-        nextState = weightedRandom(
-            ['flanking', 'attack', 'suppression'], 
-            [0.5, 0.3, 0.2]
-        );
+    
+    
+    if (isCamping) {
+        nextState = weightedRandom(['flanking', 'attack'], [0.7, 0.3]);
     } else if (stateDuration > 4000) {
         nextState = weightedRandom(
-            ['attack', 'flanking', 'suppression', 'patrol'],
+            ['attack', 'flanking', 'cover', 'patrol'],
             [
-                strategyWeights.attack,
-                strategyWeights.flanking,
-                strategyWeights.suppression,
-                strategyWeights.patrol
+                stateWeights.attack,
+                stateWeights.flanking,
+                stateWeights.cover,
+                stateWeights.patrol
             ]
         );
     }
 
-    // Anti-camping measures
-    if (campingData.isCamping && currentState !== 'flanking') {
-        nextState = 'flanking';
-        memory.forcedFlank = true;
+   
+    if (suppression > 0.7 && nextState !== 'cover') {
+        nextState = 'cover';
     }
 
-    // Update memory and state
+   
     if (nextState !== currentState) {
         memory.lastState = nextState;
         memory.stateStartTime = Date.now();
-        memory.lastCampPosition = campingData.campPosition;
+        memory.lastCampPosition = campPosition;
+        
+        
         delete memory.currentPath;
     }
 
-    // Execute state behaviors
+   
     switch(nextState) {
         case 'flanking':
-            return executeSmartFlank(enemy, px, py, scenarioMatrix, memory);
+            return maintainFlankingBehavior(enemy, px, py, scenarioMatrix, memory);
         case 'attack':
-            return executePressureAttack(enemy, px, py, scenarioMatrix, memory);
-        case 'suppression':
-            return executeSuppressionFire(enemy, px, py, scenarioMatrix);
+            return executeAttackBehavior(enemy, px, py, scenarioMatrix, effectiveAggression);
+        case 'cover':
+            return performCoverBehavior(enemy, scenarioMatrix, memory);
         default:
-            return executeObservantPatrol(enemy, scenarioMatrix, memory);
+            return executePatrolBehavior(enemy, scenarioMatrix, memory);
     }
 }
 
-const STUCK_THRESHOLD = 3000; // Changed from 2000 to 3000 ms
-
-// Update findAlternativePath to use different parameters
-function findAlternativePath(enemy, scenarioMatrix) {
-    const currentTarget = enemy.currentPath?.[enemy.currentPath.length-1];
-    if (!currentTarget) return [];
+function executePatrolBehavior(enemy, scenarioMatrix, memory) {
+    if (!memory.currentPatrolRoute || Math.random() < 0.05) {
+        memory.currentPatrolRoute = generateObservantPatrol(
+            scenarioMatrix, 
+            enemy, 
+            memory.favoriteZones
+        );
+    }
     
-    return aStarPathFind(scenarioMatrix, enemy.x, enemy.y, currentTarget.x, currentTarget.y, {
-        diagonalCost: 3, // Discourage diagonal movement
-        heuristicWeight: 1.5, // Balance search priority
-        avoidRecent: enemy.recentNodes || [],
-        backtrackLimit: 3 // Allow limited backtracking
-    });
+    return memory.currentPatrolRoute;
 }
 
-// New helper functions
-function calculateDistanceProfile(memory) {
-    const positions = memory.playerPositions;
-    const distances = positions.map(p => 
-        Math.hypot(p.x - memory.enemyBase.x, p.y - memory.enemyBase.y)
+function generateSmartFlank(scenarioMatrix, enemy, targetX, targetY, favoriteZones) {
+    const viableZones = favoriteZones.filter(zone => 
+        isPositionValid(scenarioMatrix, zone[0]*200 + 100, zone[1]*200 + 100)
     );
     
-    return {
-        averageDistance: distances.reduce((a,b) => a + b, 0) / distances.length,
-        minDistance: Math.min(...distances),
-        maxDistance: Math.max(...distances)
-    };
+    if (viableZones.length > 0) {
+        const zone = viableZones[Math.floor(Math.random() * viableZones.length)];
+        const flankTarget = {
+            x: zone[0]*200 + 100,
+            y: zone[1]*200 + 100
+        };
+        return aStarPathFind(scenarioMatrix, enemy.x, enemy.y, flankTarget.x, flankTarget.y);
+    }
+    
+    return generateFlankingPath(scenarioMatrix, enemy.x, enemy.y, targetX, targetY);
 }
 
-function executePressureAttack(enemy, px, py, scenarioMatrix, memory) {
-    const attackPath = generateRushedAttack(scenarioMatrix, enemy, px, py, memory.aggression);
+function maintainFlankingBehavior(enemy, targetX, targetY, scenarioMatrix, memory) {
+    if (!memory.currentPath || Math.random() < 0.1) {
+        memory.currentPath = generateSmartFlank(
+            scenarioMatrix, 
+            enemy, 
+            targetX, 
+            targetY, 
+            memory.favoriteZones
+        );
+    }
     
-    // Add random fake-outs to prevent predictability
-    if (Math.random() < 0.3) {
-        const fakePath = generateFeintPath(scenarioMatrix, enemy, px, py);
-        return combinePaths(attackPath, fakePath);
+
+    if (pathProgress(enemy, memory.currentPath) > 0.8) {
+        memory.currentPath = generateSmartFlank(
+            scenarioMatrix, 
+            enemy, 
+            targetX, 
+            targetY, 
+            memory.favoriteZones
+        );
+    }
+    
+    return memory.currentPath;
+}
+
+function executeAttackBehavior(enemy, targetX, targetY, scenarioMatrix, aggression) {
+    const attackPath = generateRushedAttack(scenarioMatrix, enemy, targetX, targetY, aggression);
+    
+
+    if (calculateSuppressionLevel(enemy) > 0.4) {
+        return combinePaths(
+            attackPath,
+            generateCoverPath(scenarioMatrix, enemy.x, enemy.y)
+        );
     }
     
     return attackPath;
 }
 
-function generateFeintPath(scenarioMatrix, enemy, targetX, targetY) {
-    const feintAngle = Math.atan2(targetY - enemy.y, targetX - enemy.x) + (Math.PI/4);
-    const feintDistance = 80 + Math.random() * 120;
+function performCoverBehavior(enemy, scenarioMatrix, memory) {
+    if (!memory.currentCover || Math.random() < 0.2) {
+        memory.currentCover = generateStrategicCover(
+            scenarioMatrix, 
+            enemy, 
+            memory.favoriteZones
+        );
+    }
     
-    return aStarPathFind(
-        scenarioMatrix,
-        enemy.x,
-        enemy.y,
-        enemy.x + Math.cos(feintAngle) * feintDistance,
-        enemy.y + Math.sin(feintAngle) * feintDistance
+
+    if (pathProgress(enemy, memory.currentCover) > 0.9) {
+        return combinePaths(
+            memory.currentCover,
+            generateSuppressivePosition(scenarioMatrix, enemy)
+        );
+    }
+    
+    return memory.currentCover;
+}
+
+
+function calculateSuppressionLevel(enemy) {
+    return Math.min(1, 
+        (enemy.memory.playerShots?.length || 0) / 10 +
+        calculateBulletThreatLevel(enemy)
     );
 }
 
-function calculateZoneControl(memory, enemy) {
-    const zoneSize = 300;
-    const enemyZone = `${Math.floor(enemy.x/zoneSize)},${Math.floor(enemy.y/zoneSize)}`;
-    
-    return memory.playerPositions.filter(p => {
-        const playerZone = `${Math.floor(p.x/zoneSize)},${Math.floor(p.y/zoneSize)}`;
-        return playerZone === enemyZone;
-    }).length / memory.playerPositions.length;
+function pathProgress(enemy, path) {
+    if (!path || path.length < 2) return 0;
+    const totalDistance = path.reduce((sum, p, i) => 
+        sum + (i > 0 ? Math.hypot(p.x - path[i-1].x, p.y - path[i-1].y) : 0),
+        0
+    );
+    const traveled = Math.hypot(
+        enemy.x - path[0].x, 
+        enemy.y - path[0].y
+    );
+    return traveled / totalDistance;
 }
-
-function executeSuppressionFire(enemy, px, py, scenarioMatrix) {
-    const suppressionPositions = [];
-    
-    // Create cone-shaped suppression area
-    for (let angle = -0.4; angle <= 0.4; angle += 0.1) {
-        const fireAngle = Math.atan2(py - enemy.y, px - enemy.x) + angle;
-        suppressionPositions.push({
-            x: enemy.x + Math.cos(fireAngle) * 250,
-            y: enemy.y + Math.sin(fireAngle) * 250
-        });
-    }
-
-    // Find safest suppression point
-    const safestPoint = suppressionPositions.reduce((best, point) => {
-        const coverScore = calculateCoverScore(scenarioMatrix, point.x, point.y);
-        return coverScore > best.score ? 
-            { point, score: coverScore } : best;
-    }, { score: -1 }).point;
-
-    return aStarPathFind(scenarioMatrix, enemy.x, enemy.y, safestPoint.x, safestPoint.y);
-}
-
-function calculateCoverScore(scenarioMatrix, x, y) {
-    let score = 0;
-    const directions = [
-        {dx: 1, dy: 0}, {dx: -1, dy: 0}, 
-        {dx: 0, dy: 1}, {dx: 0, dy: -1}
-    ];
-    
-    directions.forEach(dir => {
-        if (scenarioMatrix[Math.floor((x + dir.dx*20)/20)]?.[Math.floor((y + dir.dy*20)/20)] === 1) {
-            score += 0.25;
-        }
-    });
-    
-    return score;
-}
-
 
 export function generateFlankingPath(scenarioMatrix, startX, startY, targetX, targetY) {
     const flankAngle = Math.atan2(targetY - startY, targetX - startX) + (Math.PI/2);
