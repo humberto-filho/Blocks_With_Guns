@@ -29,11 +29,6 @@ class SelectPlayer extends Phaser.Scene {
         let yellowButton = this.add.image(45, 186, 'yellow').setDepth(1).setOrigin(0,0).setInteractive({useHandCursor: true});
         let greenButton = this.add.image(184, 186,  'green').setDepth(1).setOrigin(0,0).setInteractive({useHandCursor: true});
         let blueButton = this.add.image(335, 186, 'blue').setDepth(1).setOrigin(0,0).setInteractive({useHandCursor: true});
-        // if (this.sys.game.device.os.macOS) {
-        //     this.sound.stopAll();
-        //     this.textures.remove('bg');
-        //     this.scene.start('difficulties', {player : 'white'});
-        // }
           
         yellowButton.on('pointerover', () => {
             yellowButton.setTint(0xff7f7f);
